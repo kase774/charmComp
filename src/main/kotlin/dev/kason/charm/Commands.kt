@@ -7,14 +7,42 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 
 val logger = KotlinLogging.logger {}
 
+enum class Code {
+    eq,
+    ne,
+    cs,
+    hs,
+    cc,
+    lo,
+    mi,
+    pl,
+    vs,
+    vc,
+    hi,
+    ls,
+    ge,
+    lt,
+    gt,
+    le,
+    al
+}
+
 interface CharmBuilder {
     // m format
+    /** Load with offset */
     fun ldur(dest: Register, location: Register, offset: Int = 0)
-    fun stur(dest: Register, location: Register, offset: Int = 0)
+
+    /** Store with offset */
+    fun stur(data: Register, pointer: Register, offset: Int = 0)
 
     // i1
+    /** move immediate to res */
     fun movk(res: Register, immediate: UShort)
+
+    /** move immediate to res, but since immediate is u16, shift it by [shift] */
     fun movkShift(res: Register, immediate: UShort, shift: Int)
+
+    /** move to register, but 0 out */
     fun movz(res: Register, immediate: UShort)
 
     // i2
@@ -30,8 +58,8 @@ interface CharmBuilder {
     fun eor(dest: Register, a: Register, b: Register)
     fun ands(dest: Register, a: Register, b: Register)
     fun tst(dest: Register, a: Register, b: Register)
-    fun cmp(dest: Register, a: Register, b: Register)
-    fun cmn(dest: Register, a: Register, b: Register)
+    fun cmp(a: Register, b: Register)
+    fun cmn(a: Register, b: Register)
 
     // ri (immediate is acc only 12 bytes, check for that)
     fun add(dest: Register, a: Register, immediate: UShort)
@@ -40,8 +68,21 @@ interface CharmBuilder {
     fun lsr(dest: Register, a: Register, immediate: UShort)
     fun ubfm(dest: Register, a: Register, immediate: UShort)
     fun asr(dest: Register, a: Register, immediate: UShort)
-    fun cmp(dest: Register, a: Register, immediate: UShort)
-    fun cmn(dest: Register, a: Register, immediate: UShort)
+    fun cmp(a: Register, immediate: UShort)
+    fun cmn(a: Register, immediate: UShort)
+
+    fun label(str: String)
+    fun b(str: String)
+    fun b(code: Code, str: String)
+    fun bl(str: String)
+
+
+    fun ret()
+
+    fun nop()
+    fun hlt()
+
+
 }
 
 /** Use the import `import dev.kason.charm.Register.*` to save your time!
@@ -102,17 +143,52 @@ class StrCharmBuilder : CharmBuilder {
     override fun eor(dest: Register, a: Register, b: Register) = rr("eor", dest, a, b)
     override fun ands(dest: Register, a: Register, b: Register) = rr("ands", dest, a, b)
     override fun tst(dest: Register, a: Register, b: Register) = rr("tst", dest, a, b)
-    override fun cmp(dest: Register, a: Register, b: Register) = rr("cmp", dest, a, b)
-    override fun cmp(dest: Register, a: Register, immediate: UShort) = ri("cmp", dest, a, immediate)
-    override fun cmn(dest: Register, a: Register, b: Register) = rr("cmn", dest, a, b)
-    override fun cmn(dest: Register, a: Register, immediate: UShort) = ri("cmn", dest, a, immediate)
+
+    fun cmpCmn(n: String, res: Register, immediate: UShort) {
+        builder.appendLine("$n $res, #0x${immediate.toHexString()}")
+    }
+
+    fun cmpCmn(n: String, res: Register, res2: Register) {
+        builder.appendLine("$n $res, $res2")
+    }
+
+    override fun cmp(a: Register, b: Register) = cmpCmn("cmp", a, b)
+    override fun cmp(a: Register, immediate: UShort) = cmpCmn("cmp", a, immediate)
+    override fun cmn(a: Register, b: Register) = cmpCmn("cmn", a, b)
+    override fun cmn(a: Register, immediate: UShort) = cmpCmn("cmn", a, immediate)
     override fun add(dest: Register, a: Register, immediate: UShort) = ri("add", dest, a, immediate)
     override fun sub(dest: Register, a: Register, immediate: UShort) = ri("sub", dest, a, immediate)
     override fun lsl(dest: Register, a: Register, immediate: UShort) = ri("lsl", dest, a, immediate)
     override fun lsr(dest: Register, a: Register, immediate: UShort) = ri("lsr", dest, a, immediate)
     override fun ubfm(dest: Register, a: Register, immediate: UShort) = ri("ubfm", dest, a, immediate)
     override fun asr(dest: Register, a: Register, immediate: UShort) = ri("asr", dest, a, immediate)
+    override fun label(str: String) {
+        builder.appendLine("$str:")
+    }
 
+    override fun b(str: String) {
+        builder.appendLine("b $str")
+    }
+
+    override fun b(code: Code, str: String) {
+        builder.appendLine("b.$code $str")
+    }
+
+    override fun bl(str: String) {
+        builder.appendLine("bl $str")
+    }
+
+    override fun ret() {
+        builder.appendLine("ret")
+    }
+
+    override fun nop() {
+        builder.appendLine("nop")
+    }
+
+    override fun hlt() {
+        builder.appendLine("hlt")
+    }
 
     override fun toString(): String = builder.toString()
 }

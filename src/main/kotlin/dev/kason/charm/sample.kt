@@ -1,6 +1,7 @@
 package dev.kason.charm
 
 import dev.kason.charm.Register.*
+import dev.kason.charm.Code.*
 
 fun hammingDistance() = outputBuilder {
     eor(x0, x1, x0)
@@ -46,4 +47,60 @@ fun CharmBuilder.outerPS() {
     }
 }
 
-fun main() = hammingDistance()
+fun changeCase() = outputBuilder {
+    // x2 is moving pointer starting at x0
+    movz(x2, 0u)
+    adds(x2, x0, x2)
+
+    // x11 = first 56 bits
+    // x10 = last 8 bits
+    moveConstTo(x11, ((1 shl 8) - 1).toULong().inv())
+    moveConstTo(x10, ((1 shl 8) - 1).toULong())
+    label("loop")
+    // x3 = *c
+    ldur(x3, x2)
+    ands(x3, x10, x3)
+
+    cmp(x3, 0u)
+    b(eq, "finish")
+
+    cmp(x1, 0u)
+    b(ne, "try_upper")
+    cmp(x3, 'A'.code.toUShort())
+    b(lt, "try_upper")
+    cmp(x3, 'Z'.code.toUShort())
+    b(gt, "try_upper")
+    add(x3, x3, 32u)
+
+    ldur(x5, x2)
+    // load the other bytes
+    ands(x5, x5, x11)
+    orr(x3, x3, x5)
+    stur(x3, x2)
+
+    label("try_upper")
+    cmp(x1, 0u)
+    b(eq, "loop_end")
+    cmp(x3, 'a'.code.toUShort())
+    b(lt, "loop_end")
+    cmp(x3, 'z'.code.toUShort())
+    b(gt, "loop_end")
+    sub(x3, x3, 32u)
+
+    ldur(x5, x2)
+    ands(x5, x5, x11)
+    orr(x3, x3, x5)
+    stur(x3, x2)
+
+    label("loop_end")
+    add(x2, x2, 1u)
+    b("loop")
+    label("finish")
+    ret()
+}
+
+fun treeDepth() = outputBuilder {
+
+}
+
+fun main() = changeCase()
